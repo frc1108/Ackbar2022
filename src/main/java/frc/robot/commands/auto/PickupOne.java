@@ -8,15 +8,22 @@ import frc.robot.subsystems.DriveSubsystem;
 
 public class PickupOne extends SequentialCommandGroup {
   public PickupOne(DriveSubsystem m_robotDrive) {        
-      TrajectoryConfig config = new TrajectoryConfig(1, 2);
+      TrajectoryConfig fwdConfig = new TrajectoryConfig(2, 3);
+      TrajectoryConfig revConfig = new TrajectoryConfig(2, 3).setReversed(true);
       
-      Trajectory trajToCargo = m_robotDrive.generateTrajectory("Cargo1", config);
+      Trajectory trajToCargo = m_robotDrive.generateTrajectory("Cargo1", fwdConfig);
+      Trajectory reverseTurn = m_robotDrive.generateTrajectory("Cargo2", revConfig);
+      Trajectory terminalRun = m_robotDrive.generateTrajectory("Cargo3", fwdConfig);
+      Trajectory returnToHub = m_robotDrive.generateTrajectory("Cargo4", revConfig);
       
       addCommands(
           new InstantCommand(() -> {
               m_robotDrive.resetOdometry(trajToCargo.getInitialPose());
           }),
-          m_robotDrive.createCommandForTrajectory(trajToCargo, false).withTimeout(10).withName("DriveToCargo")
+          m_robotDrive.createCommandForTrajectory(trajToCargo, false).withTimeout(5).withName("Cargo One Pickup"),
+          m_robotDrive.createCommandForTrajectory(reverseTurn, false).withTimeout(5).withName("Reverse Turn"),
+          m_robotDrive.createCommandForTrajectory(terminalRun, false).withTimeout(5).withName("Terminal Run"),
+          m_robotDrive.createCommandForTrajectory(returnToHub, false).withTimeout(5).withName("Return To Hub")
       );
   }
 }

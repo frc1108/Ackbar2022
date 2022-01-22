@@ -168,7 +168,7 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
 
   public void tankDriveVolts(double leftVolts, double rightVolts) {
     m_leftMain.setVoltage(leftVolts);
-    m_rightMain.setVoltage(-rightVolts);
+    m_rightMain.setVoltage(rightVolts);
     m_drive.feed();
   }
 
