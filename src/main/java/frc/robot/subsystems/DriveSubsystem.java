@@ -132,10 +132,10 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
    */
   @Override
   public void periodic() {
-    m_odometry.update(Rotation2d.fromDegrees(getHeading()), m_leftEncoder.getPosition(), -m_rightEncoder.getPosition());
+    m_odometry.update(Rotation2d.fromDegrees(getHeading()), m_leftEncoder.getPosition(), m_rightEncoder.getPosition());
     SmartDashboard.putNumber("Angle",getHeading());
     SmartDashboard.putNumber("Left Dist", m_leftEncoder.getPosition());
-    SmartDashboard.putNumber("Right Dist", -m_rightEncoder.getPosition());  
+    SmartDashboard.putNumber("Right Dist", m_rightEncoder.getPosition());  
   }
 
   /***** Drivetrain methods
@@ -176,15 +176,15 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
       m_leftMain.setVoltage(m_leftfeedforward.calculate(leftVelocitySetpoint)
           + m_leftPID.calculate(m_leftEncoder.getVelocity(), leftVelocitySetpoint));
       m_rightMain.setVoltage(m_rightfeedforward.calculate(rightVelocitySetpoint)
-          + m_rightPID.calculate(-m_rightEncoder.getVelocity(), rightVelocitySetpoint));
+          + m_rightPID.calculate(m_rightEncoder.getVelocity(), rightVelocitySetpoint));
     m_drive.feed();
   } 
 
   /***** Gyro methods
    * zeroHeading: sets gyro to zero
    * getHeading: returns gyro angle in degrees [Log]
-   * getHeadingCW: returns gyro angle in degrees clockwise [Log]
-   * getTurnRateCW: returns gyro rate in degrees/sec clockwise
+   * getHeadingCW: returns gyro angle in degrees positive clockwise [Log]
+   * getTurnRateCW: returns gyro rate in degrees/sec positive clockwise
    */
 
   public void zeroHeading() {
@@ -246,7 +246,7 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   }
 
   public DifferentialDriveWheelSpeeds getWheelSpeeds() {
-    return new DifferentialDriveWheelSpeeds(m_leftEncoder.getVelocity(),-m_rightEncoder.getVelocity());
+    return new DifferentialDriveWheelSpeeds(m_leftEncoder.getVelocity(),m_rightEncoder.getVelocity());
   }
 
     /***** Trajectory methods - make paths for robot to follow 

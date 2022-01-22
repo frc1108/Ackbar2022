@@ -8,9 +8,9 @@ import frc.robot.subsystems.DriveSubsystem;
 
 public class PickupOne extends SequentialCommandGroup {
   public PickupOne(DriveSubsystem m_robotDrive) {        
-      TrajectoryConfig config = new TrajectoryConfig(2, 3);
+      TrajectoryConfig config = new TrajectoryConfig(1, 2);
       
-      Trajectory trajToCargo = m_robotDrive.generateTrajectory("Barrel1", config);
+      Trajectory trajToCargo = m_robotDrive.generateTrajectory("Cargo1", config);
       
       addCommands(
           new InstantCommand(() -> {
