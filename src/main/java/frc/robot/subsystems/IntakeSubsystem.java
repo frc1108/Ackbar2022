@@ -43,4 +43,8 @@ public class IntakeSubsystem extends SubsystemBase{
     public void slowOutIntake(){
         m_intake.set(m_slowOutSpeed);
     }
+
+    public double getSpeed() {
+        return m_intake.get();
+    }
 }

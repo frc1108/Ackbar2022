@@ -48,90 +48,192 @@ import io.github.oblarg.oblog.annotations.Config;
 import io.github.oblarg.oblog.annotations.Log;
 
 public class DriveSubsystem extends SubsystemBase implements Loggable {
-  private final CANSparkMax m_leftLead = new CANSparkMax(DriveConstants.CAN_ID_LEFT_DRIVE,MotorType.kBrushless);
-  private final CANSparkMax m_rightLead = new CANSparkMax(DriveConstants.CAN_ID_RIGHT_DRIVE,MotorType.kBrushless);
-  private final CANSparkMax m_leftFollow = new CANSparkMax(DriveConstants.CAN_ID_LEFT_DRIVE_2,MotorType.kBrushless);
-  private final CANSparkMax m_rightFollow = new CANSparkMax(DriveConstants.CAN_ID_RIGHT_DRIVE_2,MotorType.kBrushless);
-  private final DifferentialDrive m_drive = new DifferentialDrive(m_leftLead,m_rightLead);
+  private final CANSparkMax m_leftMain = new CANSparkMax(DriveConstants.kLeftMainPort, MotorType.kBrushless);
+  private final CANSparkMax m_leftFollow = new CANSparkMax(DriveConstants.kLeftFollowPort, MotorType.kBrushless);
+  private final CANSparkMax m_rightMain = new CANSparkMax(DriveConstants.kRightMainPort, MotorType.kBrushless);
+  private final CANSparkMax m_rightFollow = new CANSparkMax(DriveConstants.kRightFollowPort, MotorType.kBrushless);
+  private final DifferentialDrive m_drive = new DifferentialDrive(m_leftMain,m_rightMain);
 
-  private final PIDController leftPID = new PIDController(DriveConstants.kPDriveVel, 0, 0);
-  private final PIDController rightPID = new PIDController(DriveConstants.kPDriveVel, 0, 0);
-  private final SimpleMotorFeedforward feedforward = new SimpleMotorFeedforward(DriveConstants.ksVolts,DriveConstants.kvVoltSecondsPerMeter,DriveConstants.kaVoltSecondsSquaredPerMeter);
+  // Wheel velocity PID control for robot
+  private final PIDController m_leftPID = new PIDController(DriveConstants.kPDriveVel, 0, 0);
+  private final PIDController m_rightPID = new PIDController(DriveConstants.kPDriveVel, 0, 0);
+  private final SimpleMotorFeedforward m_leftfeedforward = new SimpleMotorFeedforward(DriveConstants.ksVolts,DriveConstants.kvVoltSecondsPerMeter,DriveConstants.kaVoltSecondsSquaredPerMeter);
+  private final SimpleMotorFeedforward m_rightfeedforward = new SimpleMotorFeedforward(DriveConstants.ksVolts,DriveConstants.kvVoltSecondsPerMeter,DriveConstants.kaVoltSecondsSquaredPerMeter);
 
   public double slewSpeed = 6;  // in units/s
   public double slewTurn = 6;
   private final SlewRateLimiter m_speedSlew = new SlewRateLimiter(slewSpeed);
   private final SlewRateLimiter m_turnSlew = new SlewRateLimiter(slewTurn);
 
-  // setup ultrasonic sensor
-  private final AnalogInput m_ultrasonic = new AnalogInput(DriveConstants.kUltrasonicPort);
-
-  private final RelativeEncoder m_encoderRight;
-  private final RelativeEncoder m_encoderLeft;
+  private final RelativeEncoder m_leftEncoder;
+  private final RelativeEncoder m_rightEncoder;
   private final DifferentialDriveOdometry m_odometry;
   private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
+  // private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
+
+  // Setup ultrasonic sensor
+  private final AnalogInput m_ultrasonic = new AnalogInput(DriveConstants.kUltrasonicPort);
 
   /**
    * Creates a new DriveSubsystem.
    */
   public DriveSubsystem() {
     // Stops drive motors
-    stop();
+    idle();
 
     // Restores default CANSparkMax settings
-    m_leftLead.restoreFactoryDefaults();
+    m_leftMain.restoreFactoryDefaults();
     m_leftFollow.restoreFactoryDefaults();
-    m_rightLead.restoreFactoryDefaults();
+    m_rightMain.restoreFactoryDefaults();
     m_rightFollow.restoreFactoryDefaults();
 
-    m_leftFollow.follow(m_leftLead);
-    m_rightFollow.follow(m_rightLead);
+    m_leftFollow.follow(m_leftMain);
+    m_rightFollow.follow(m_rightMain);
 
-    m_leftLead.setInverted(false);
-    m_rightLead.setInverted(true);
-
+    m_leftMain.setInverted(false);
+    m_rightMain.setInverted(true);
+    
     // Set Idle mode for CANSparkMax (brake)
-    m_leftLead.setIdleMode(IdleMode.kBrake);
+    m_leftMain.setIdleMode(IdleMode.kBrake);
     m_leftFollow.setIdleMode(IdleMode.kBrake);
-    m_rightLead.setIdleMode(IdleMode.kBrake);
+    m_rightMain.setIdleMode(IdleMode.kBrake);
     m_rightFollow.setIdleMode(IdleMode.kBrake);
-
+    
     // Set Smart Current Limit for CAN SparkMax
-    m_leftLead.setSmartCurrentLimit(40, 60);
+    m_leftMain.setSmartCurrentLimit(40, 60);
     m_leftFollow.setSmartCurrentLimit(40, 60);
-    m_rightLead.setSmartCurrentLimit(40, 60);
+    m_rightMain.setSmartCurrentLimit(40, 60);
     m_rightFollow.setSmartCurrentLimit(40, 60);
 
-    m_encoderLeft = m_leftLead.getEncoder();
-    m_encoderRight = m_rightLead.getEncoder();
-    m_encoderRight.setPositionConversionFactor(DriveConstants.kEncoderDistanceConversionFactor);
-    m_encoderRight.setVelocityConversionFactor(DriveConstants.kEncoderVelocityConversionFactor);
-    m_encoderLeft.setPositionConversionFactor(DriveConstants.kEncoderDistanceConversionFactor);
-    m_encoderLeft.setVelocityConversionFactor(DriveConstants.kEncoderVelocityConversionFactor);
+    // Setup NEO internal encoder to return SI units for odometry
+    m_leftEncoder = m_leftMain.getEncoder();
+    m_rightEncoder = m_rightMain.getEncoder();
+    m_rightEncoder.setPositionConversionFactor(DriveConstants.kEncoderDistanceConversionFactor);
+    m_rightEncoder.setVelocityConversionFactor(DriveConstants.kEncoderVelocityConversionFactor);
+    m_leftEncoder.setPositionConversionFactor(DriveConstants.kEncoderDistanceConversionFactor);
+    m_leftEncoder.setVelocityConversionFactor(DriveConstants.kEncoderVelocityConversionFactor);
 
-    //m_leftLead.burnFlash();
-    //m_leftFollow.burnFlash();
-    //m_rightLead.burnFlash();
-    //m_rightFollow.burnFlash(); 
+    // Burn settings into Spark MAX flash
+    m_leftMain.burnFlash();
+    m_leftFollow.burnFlash();
+    m_rightMain.burnFlash();
+    m_rightFollow.burnFlash(); 
 
     // Set drive deadband and safety 
     m_drive.setDeadband(0.05);
     m_drive.setSafetyEnabled(false);
 
-    //m_gyro.reset();
+    // Start robot odometry tracker
     m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(getHeading()));
   }
 
-  public void periodic(){
-    m_odometry.update(Rotation2d.fromDegrees(getHeading()), m_encoderLeft.getPosition(), -m_encoderRight.getPosition());
-    SmartDashboard.putNumber("Left Dist", m_encoderLeft.getPosition());
-    SmartDashboard.putNumber("Right Dist", -m_encoderRight.getPosition());
-    SmartDashboard.putNumber("Left Vel Factor", m_gyro.getAngle());
+  /**
+   * Updating values to logging and odometry, or other periodic updates
+   */
+  @Override
+  public void periodic() {
+    m_odometry.update(Rotation2d.fromDegrees(getHeading()), m_leftEncoder.getPosition(), -m_rightEncoder.getPosition());
+    SmartDashboard.putNumber("Angle",getHeading());
+    SmartDashboard.putNumber("Left Dist", m_leftEncoder.getPosition());
+    SmartDashboard.putNumber("Right Dist", -m_rightEncoder.getPosition());  
   }
 
-  public Pose2d getPose() {
-      return m_odometry.getPoseMeters();
+  /***** Drivetrain methods
+   * idle: set motors to idle
+   * setMaxOutput: set drivetrain max speed [Config]
+   * arcadeDrive: set output of drive motors with robot speed and rotation
+   * tankDriveVolts: set voltage of drive motors directly
+   * tankDriveFeedforwardPID: set wheel speed of drive motors closed loop
+   */
+
+  public void idle(){
+    m_leftMain.stopMotor();
+    m_leftFollow.stopMotor();
+    m_rightMain.stopMotor();
+    m_rightFollow.stopMotor();
   }
+
+  @Config(name="Max Drive Output", defaultValueNumeric = 0.9)
+  public void setMaxOutput(double maxOutput) {
+    m_drive.setMaxOutput(maxOutput);
+  }
+
+  public void arcadeDrive(double fwd, double rot) {
+    m_drive.arcadeDrive(m_speedSlew.calculate(-fwd), 0.8*m_turnSlew.calculate(rot));
+  }
+
+  public void curvatureDrive(double fwd, double rot, boolean quickTurn) {
+    m_drive.curvatureDrive(m_speedSlew.calculate(-fwd), m_turnSlew.calculate(rot), quickTurn);
+  }
+
+  public void tankDriveVolts(double leftVolts, double rightVolts) {
+    m_leftMain.setVoltage(leftVolts);
+    m_rightMain.setVoltage(-rightVolts);
+    m_drive.feed();
+  }
+
+  public void tankDriveWithFeedforwardPID(double leftVelocitySetpoint, double rightVelocitySetpoint) {
+      m_leftMain.setVoltage(m_leftfeedforward.calculate(leftVelocitySetpoint)
+          + m_leftPID.calculate(m_leftEncoder.getVelocity(), leftVelocitySetpoint));
+      m_rightMain.setVoltage(m_rightfeedforward.calculate(rightVelocitySetpoint)
+          + m_rightPID.calculate(-m_rightEncoder.getVelocity(), rightVelocitySetpoint));
+    m_drive.feed();
+  } 
+
+  /***** Gyro methods
+   * zeroHeading: sets gyro to zero
+   * getHeading: returns gyro angle in degrees [Log]
+   * getHeadingCW: returns gyro angle in degrees clockwise [Log]
+   * getTurnRateCW: returns gyro rate in degrees/sec clockwise
+   */
+
+  public void zeroHeading() {
+    m_gyro.reset();
+  }
+
+  @Log
+  public double getHeading() {
+      return Math.IEEEremainder(m_gyro.getAngle(), 360) * (DriveConstants.kGyroReversed ? -1.0 : 1.0);//gyro is inversed
+  }
+
+  @Log
+  public double getHeadingCW() {
+    return Math.IEEEremainder(m_gyro.getAngle(), 360);
+  }
+
+  public double getTurnRateCW() {
+    return m_gyro.getRate();
+  }
+
+  /***** Encoder methods
+  * resetEncoders: sets encoders to zero
+  * getAverageEncoderDistance: get combined left and right changes in position
+  * getLeftEncoder: get left RelativeEncoder
+  * getRightEncoder: get right RelativeEncoder
+  */
+
+  public void resetEncoders() {
+    m_leftEncoder.setPosition(0);
+    m_rightEncoder.setPosition(0);
+  }
+
+  public double getAverageEncoderDistance() {
+    return (m_leftEncoder.getPosition() + m_rightEncoder.getPosition()) / 2.0;
+  }
+
+  public RelativeEncoder getLeftEncoder() {
+    return m_leftEncoder;
+  }
+
+  public RelativeEncoder getRightEncoder() {
+    return m_rightEncoder;
+  }
+
+  /***** Odometry methods - keep track of robot pose 
+   * resetOdometry: Set odometry position with reset encoder and gyro
+   * getPose: Get current robot pose
+   * getWheelSpeeds: 
+  */
 
   public void resetOdometry(Pose2d pose) {
     resetEncoders();
@@ -139,97 +241,23 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
     m_odometry.resetPosition(pose, Rotation2d.fromDegrees(getHeading()));
   }
 
-  public void resetEncoders() {
-    m_encoderRight.setPosition(0);
-    m_encoderLeft.setPosition(0);
+  public Pose2d getPose() {
+    return m_odometry.getPoseMeters();
   }
 
   public DifferentialDriveWheelSpeeds getWheelSpeeds() {
-      return new DifferentialDriveWheelSpeeds(m_encoderLeft.getVelocity(),-m_encoderRight.getVelocity());
-  } 
-  
-  public void tankDriveVolts(double leftVolts, double rightVolts) {
-      m_leftLead.setVoltage(leftVolts);
-      m_rightLead.setVoltage(-rightVolts);
-      m_drive.feed();
+    return new DifferentialDriveWheelSpeeds(m_leftEncoder.getVelocity(),-m_rightEncoder.getVelocity());
   }
 
-  public void tankDriveWithFeedforwardPID(double leftVelocitySetpoint, double rightVelocitySetpoint) {
-      m_leftLead.setVoltage(feedforward.calculate(leftVelocitySetpoint)
-          + leftPID.calculate(m_encoderLeft.getVelocity(), leftVelocitySetpoint));
-      m_rightLead.setVoltage(feedforward.calculate(rightVelocitySetpoint)
-          + rightPID.calculate(-m_encoderRight.getVelocity(), rightVelocitySetpoint));
-    m_drive.feed();
-}
-
-  @Log
-  public double getHeading() {
-      return Math.IEEEremainder(m_gyro.getAngle(), 360) * (DriveConstants.kGyroReversed ? -1.0 : 1.0);//gyro is inversed
-  }
-
-  /**
-   * Zeroes the heading of the robot.
+    /***** Trajectory methods - make paths for robot to follow 
+   * createCommandForTrajectory:
+   * loadTrajectory:
+   * generateTrajectory:
+   * loadTrajectoryFromFile:
+   * generateTrajectoryFromFile:
+   * TODO explain these methods
    */
-  public void zeroHeading() {
-    m_gyro.reset();
-  }
-
-  public void reset(){
-    m_gyro.reset();
-    m_encoderLeft.setPosition(0);
-    m_encoderRight.setPosition(0);
-    m_odometry.resetPosition(new Pose2d(), Rotation2d.fromDegrees(getHeading()));
-  }
-
-  /**
-   * Drives the robot using arcade controls.
-   *
-   * @param fwd the commanded forward movement
-   * @param rot the commanded rotation
-   */
-  public void arcadeDrive(double fwd, double rot) {
-    m_drive.arcadeDrive(m_speedSlew.calculate(-fwd), m_turnSlew.calculate(rot));
-  }
-
-   /**
-   * Drives the robot using arcade controls.
-   *
-   * @param fwd the commanded forward movement
-   * @param rot the commanded rotation
-   * @param quickTurn button to quickTurn
-   */
-  public void curvatureDrive(double fwd, double rot, boolean quickTurn) {
-    m_drive.curvatureDrive(m_speedSlew.calculate(-fwd), m_turnSlew.calculate(rot), quickTurn);
-  }
   
-  @Config(name="Speed, max", defaultValueNumeric = 0.9)
-  public void setSpeedMax(double xSpeed) {
-    m_drive.setMaxOutput(xSpeed);
-  }
-
-  @Log(name = "Ultrasonic, in")
-  public double getSonarDistanceInches(){
-    return m_ultrasonic.getValue()*DriveConstants.kValueToInches;
-  }
-  
-  public void stop(){
-    m_leftLead.stopMotor();
-    m_leftFollow.stopMotor();
-    m_rightLead.stopMotor();
-    m_rightFollow.stopMotor();
-  }  
-
-  @Log
-  public double getHeadingCW() {
-    // Not negating
-    return Math.IEEEremainder(m_gyro.getAngle(), 360);
-  }
-
-  public double getTurnRateCW() {
-    // Not negating
-    return m_gyro.getRate();
-  }
-
   /**
    * Creates a command to follow a Trajectory on the drivetrain.
    * @param trajectory trajectory to follow
@@ -278,5 +306,14 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   public Trajectory generateTrajectoryFromFile(String filename) {
       var config = new TrajectoryConfig(1, 3);
       return generateTrajectory(filename, config);
+  }
+
+  /***** Other methods
+  * getSonarDistanceInches: get ultrasonic sensor distance in inches [Log] 
+  */
+
+  @Log(name = "Ultrasonic, in")
+  public double getSonarDistanceInches(){
+    return m_ultrasonic.getValue()*DriveConstants.kValueToInches;
   }
 }

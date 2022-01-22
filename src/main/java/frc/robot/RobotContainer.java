@@ -8,6 +8,7 @@
 package frc.robot;
 
 import io.github.oblarg.oblog.annotations.Log;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
@@ -148,6 +149,6 @@ public class RobotContainer {
   }
  
   public void reset(){
-    m_robotDrive.reset();
+    m_robotDrive.resetOdometry(new Pose2d());
   }
 }

@@ -68,6 +68,6 @@ public class FieldOrientedTurn extends ProfiledPIDCommand {
   @Override
   public void end(boolean interrupted) {
     super.end(interrupted);
-    m_drive.stop();
+    m_drive.idle();
   }
 }
