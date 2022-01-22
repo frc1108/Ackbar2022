@@ -1,0 +1,11 @@
+{
+  "SysId": {
+    "Analysis Type": "Drivetrain",
+    "AnalyzerJSONLocation": "C:\\Users\\User\\Documents\\Ackbar2022\\sysid\\drive\\sysid_data20220117-135848.json",
+    "NetworkTables Settings": {
+      "serverTeam": "1108"
+    },
+    "mode": "Client",
+    "serverTeam": "1108"
+  }
+}

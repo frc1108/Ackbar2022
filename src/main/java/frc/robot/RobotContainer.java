@@ -8,6 +8,7 @@
 package frc.robot;
 
 import io.github.oblarg.oblog.annotations.Log;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
@@ -29,6 +30,7 @@ import frc.robot.commands.climber.ManualClimber;
 import frc.robot.commands.hopper.ManualHopper;
 import frc.robot.commands.auto.Center3Ball;
 import frc.robot.commands.auto.DriveOffLine;
+import frc.robot.commands.auto.PickupOne;
 
 import static frc.robot.Constants.OIConstants.*;
 
@@ -59,6 +61,8 @@ public class RobotContainer {
    */
   public RobotContainer() {
     configureButtonBindings();
+
+    m_autoChooser.setDefaultOption("Pickup One Cargo", new PickupOne(m_robotDrive));
 
     // Drive default is split stick arcade drive (fwd left / rot right)
     m_robotDrive.setDefaultCommand(
@@ -148,6 +152,6 @@ public class RobotContainer {
   }
  
   public void reset(){
-    m_robotDrive.reset();
+    m_robotDrive.resetOdometry(new Pose2d());
   }
 }
