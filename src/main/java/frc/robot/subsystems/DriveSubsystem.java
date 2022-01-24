@@ -36,6 +36,8 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
+import org.photonvision.PhotonCamera;
+
 import com.kauailabs.navx.frc.AHRS;
 
 import static frc.robot.Constants.*;
@@ -57,6 +59,7 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   // Wheel velocity PID control for robot
   private final PIDController m_leftPID = new PIDController(DriveConstants.kPDriveVel, 0, 0);
   private final PIDController m_rightPID = new PIDController(DriveConstants.kPDriveVel, 0, 0);
+  private final PIDController m_turnPID = new PIDController(DriveConstants.kTurnP, 0, DriveConstants.kTurnD);
   private final SimpleMotorFeedforward m_leftfeedforward = new SimpleMotorFeedforward(DriveConstants.ksVolts,DriveConstants.kvVoltSecondsPerMeter,DriveConstants.kaVoltSecondsSquaredPerMeter);
   private final SimpleMotorFeedforward m_rightfeedforward = new SimpleMotorFeedforward(DriveConstants.ksVolts,DriveConstants.kvVoltSecondsPerMeter,DriveConstants.kaVoltSecondsSquaredPerMeter);
 
@@ -70,6 +73,8 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   private final DifferentialDriveOdometry m_odometry;
   private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
   // private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
+
+  private final PhotonCamera m_snakeeyeMain = new PhotonCamera("SnakeIR");
 
   // Setup ultrasonic sensor
   private final AnalogInput m_ultrasonic = new AnalogInput(DriveConstants.kUltrasonicPort);
@@ -308,9 +313,19 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
       return generateTrajectory(filename, config);
   }
 
-  /***** Other methods
+  /***** Vision and Ultrasonic Methods
   * getSonarDistanceInches: get ultrasonic sensor distance in inches [Log] 
   */
+
+  public double getVisionAngle() {
+    var result = m_snakeeyeMain.getLatestResult();
+    if (result.hasTargets()) {
+      return (getHeading() - result.getBestTarget().getYaw());
+    } else {
+      // If we have no targets, stay still.
+      return getHeading();
+    }
+  }
 
   @Log(name = "Ultrasonic, in")
   public double getSonarDistanceInches(){
