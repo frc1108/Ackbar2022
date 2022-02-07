@@ -21,6 +21,7 @@ import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RamseteCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
@@ -71,8 +72,8 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
   private final RelativeEncoder m_leftEncoder;
   private final RelativeEncoder m_rightEncoder;
   private final DifferentialDriveOdometry m_odometry;
-  private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
-  // private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
+  // private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
+  private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
 
   private final PhotonCamera m_snakeeyeMain = new PhotonCamera("SnakeIR");
 
@@ -105,10 +106,10 @@ public class DriveSubsystem extends SubsystemBase implements Loggable {
     m_rightFollow.setIdleMode(IdleMode.kBrake);
     
     // Set Smart Current Limit for CAN SparkMax
-    m_leftMain.setSmartCurrentLimit(40, 60);
-    m_leftFollow.setSmartCurrentLimit(40, 60);
-    m_rightMain.setSmartCurrentLimit(40, 60);
-    m_rightFollow.setSmartCurrentLimit(40, 60);
+    m_leftMain.setSmartCurrentLimit(55, 45);
+    m_leftFollow.setSmartCurrentLimit(55, 45);
+    m_rightMain.setSmartCurrentLimit(55, 45);
+    m_rightFollow.setSmartCurrentLimit(55, 45);
 
     // Setup NEO internal encoder to return SI units for odometry
     m_leftEncoder = m_leftMain.getEncoder();
