@@ -47,7 +47,7 @@ public class RobotContainer {
   @Log private final LauncherSubsystem m_launcher = new LauncherSubsystem();
   @Log private final ClimberSubsystem m_climber = new ClimberSubsystem();
   private final IntakeSubsystem m_intake = new IntakeSubsystem();
-  private final FeederSubsystem m_feeder = new FeederSubsystem();
+  @Log private final FeederSubsystem m_feeder = new FeederSubsystem();
 
   // A chooser for autonomous commands
   SendableChooser<Command> m_autoChooser = new SendableChooser<>();
